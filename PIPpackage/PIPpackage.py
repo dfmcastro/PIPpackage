@@ -10,7 +10,7 @@ from math import floor, ceil
 ########
 # GenImage - generates an numpy array with a random image
 ################
-def genImage(dimX,dimY,max,seed=0):
+def genImage(dimX, dimY, max, seed=0):
     '''
     Generates a numpy array with dimX by dimY pixels of type int
     - returns the array filled with values between zero and max
@@ -146,7 +146,7 @@ def sepFilter(col, lin, img):
 # Calculate rotation source coordinates (angle in degrees)
 ################
 def calcRotCoord(x, y, ang):
-    ang = ang / 180 * pi
+    ang = ang / 180 * np.pi
     xorig = x * cos(ang) - y * sin(ang)
     yorig = x * sin(ang) + y * cos(ang)
     return (xorig, yorig)
@@ -198,6 +198,61 @@ def bilinear(xorig, yorig, img, verb=False):
     return int(round(res,0))
 
 ########
+# Bicubic interpolation Aux
+################
+def bicubic_aux(values, off, verb=False):
+    '''
+    Bilcubic interpolation Auxiliary Function
+    :param v1: Fist value
+    :param v2: Second value
+    :param v3: Third value
+    :param v4: Fourth value
+    :param off: Offset between first and second value
+    :param verb: True if messages are expected
+    :return: result of interpolated values
+    '''
+
+    res = values[1] + off*(0.5*values[2]-0.5*values[0]) + np.power(off, 2)*(-0.5*values[3]+2*values[2]-2.5*values[1]
+            + values[0]) + np.power(off, 3)*(0.5*values[3]-1.5*values[2]+1.5*values[1]-0.5*values[0])
+    if verb:
+        print('Interpolating between', values[0], values[1], values[2], 'and', values[3],'at',off,'=', res)
+    return res
+
+########
+# Bicubic interpolation
+################
+def bicubic(xorig, yorig, img, verb=False):
+    '''
+    Bicubic interpolation
+    :param xorig: X coordinate
+    :param yorig: Y coordinate
+    :param img: Image to interpolate
+    :param verb: True if messages are expected
+    :return: rounded value of resulting bicubic interpolation
+    '''
+    if verb:
+        print('Bicubic to find', xorig, yorig)
+
+    x1 = floor(xorig)
+    y1 = floor(yorig)
+
+    listoff = [[-1, -1], [-1, 0], [-1, 1], [-1, 2], [0, -1], [0, 0], [0, 1], [0, 2], [1, -1], [1, 0], [1, 1], [1, 2],
+               [2, -1], [2, 0], [2, 1], [2, 2]]
+
+    values = [img[y1+off[0]][x1+off[1]] for off in listoff]
+    vvs = [0, 0, 0, 0]
+    if verb:
+        print('Values to consider:', values)
+
+    vvs[0] = bicubic_aux(values[0:4], xorig - x1, verb)
+    vvs[1] = bicubic_aux(values[4:8], xorig - x1, verb)
+    vvs[2] = bicubic_aux(values[8:12], xorig - x1, verb)
+    vvs[3] = bicubic_aux(values[12:16], xorig - x1, verb)
+    res = bicubic_aux(vvs[0:4], yorig - y1, verb)
+
+    return int(round(res, 0))
+
+########
 # Hybrid 5x5 median filter value for a pixel
 ################
 def medianHybrid5x5(x, y, image,verb=False):
@@ -206,7 +261,7 @@ def medianHybrid5x5(x, y, image,verb=False):
     :param x: X coordinate
     :param y: Y coordinate
     :param image: image to be filtered
-    :param prt:
+    # :param prt:
     :return:
     '''
     diag = [[-2, -2], [-1, -1], [0, 0], [1, 1], [2, 2], [2, -2], [1, -1], [-1, 1], [-2, 2]]
